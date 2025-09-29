@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Workspace</title>
+    <link rel="icon" type="image/png" href="https://i.postimg.cc/Gh76CYCH/123-1.png">
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://rsms.me/inter/inter.css');
+        
+        :root {
+            --bg-color: #F8F9FA;
+            --sidebar-bg: #FFFFFF;
+            --main-bg: #FFFFFF;
+            --accent-color: #4f46e5;
+            --text-color: #374151;
+            --text-color-light: #6b7280;
+            --border-color: #e5e7eb;
+            --interactive-hover-bg: #f3f4f6;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--text-color);
+            font-size: 14px;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.2); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.4); }
+
+        .table-fixed-layout {
+            table-layout: fixed;
+            width: 100%;
+        }
+
+        .truncate-cell {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+        // --- SVG ICONS ---
+        const NoteIcon = ({ hasNotes }) => ( <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={hasNotes ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={hasNotes ? 'text-indigo-500' : 'text-slate-400 group-hover:text-slate-600'}><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"></path><path d="M15 3v6h6"></path></svg> );
+        const ExportIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>);
+        const ImportIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>);
+        const SearchIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> );
+        const EditIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 group-hover:text-slate-600 transition-colors"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg> );
+        const TrashIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 group-hover:text-red-500 transition-colors"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg> );
+        const TwitterIcon = ({ hasUrl }) => ( <a href={hasUrl} target="_blank" rel="noopener noreferrer" className={hasUrl ? 'text-sky-500 hover:text-sky-600' : 'text-slate-300 cursor-not-allowed'}><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M22.46,6C21.69,6.35 20.86,6.58 20,6.69C20.88,6.16 21.56,5.32 21.88,4.31C21.05,4.81 20.13,5.16 19.16,5.36C18.37,4.5 17.26,4 16,4C13.65,4 11.73,5.92 11.73,8.29C11.73,8.63 11.77,8.96 11.84,9.27C8.28,9.09 5.11,7.38 3,4.79C2.63,5.42 2.42,6.16 2.42,6.94C2.42,8.43 3.17,9.75 4.33,10.5C3.62,10.5 2.96,10.3 2.38,10C2.38,10 2.38,10 2.38,10.03C2.38,12.11 3.86,13.85 5.82,14.24C5.46,14.34 5.08,14.39 4.69,14.39C4.42,14.39 4.15,14.36 3.89,14.31C4.43,16.02 6.08,17.26 8.12,17.29C6.67,18.45 4.88,19.16 3,19.16C2.65,19.16 2.31,19.14 2,19.11C3.99,20.41 6.35,21.16 8.98,21.16C16.01,21.16 20.24,15.54 20.24,10.5C20.24,10.33 20.24,10.15 20.22,9.98C20.98,9.45 21.78,8.75 22.46,8C21.74,8.31 20.97,8.54 20.16,8.66C20.97,8.14 21.63,7.33 21.94,6.38L22.46,6Z" /></svg></a>);
+        const DiscordIcon = ({ hasUrl }) => ( <a href={hasUrl} target="_blank" rel="noopener noreferrer" className={hasUrl ? 'text-indigo-500 hover:text-indigo-600' : 'text-slate-300 cursor-not-allowed'}><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 28 21"><path d="M23.333 2.051a20.21 20.21 0 0 0-4.639-1.4C18.444.357 18.194 0 17.916 0H9.86C9.582 0 9.332.357 9.082.651a20.21 20.21 0 0 0-4.639 1.4C1.597 3.376 0 6.448 0 9.804c0 4.502 3.037 8.342 7.222 9.803a15.173 15.173 0 0 0 .86.326c.354.103.708-.052.833-.406a1.182 1.182 0 0 0-.153-.981 12.28 12.28 0 0 1-2.14-2.628c.026-.026.052-.026.077-.052a11.668 11.668 0 0 0 13.755 0c.025.026.05.026.076.052a12.333 12.333 0 0 1-2.14 2.628 1.17 1.17 0 0 0-.153.981c.125.354.48.509.834.406.282-.077.564-.222.86-.326C24.74 18.146 28 14.304 28 9.804c0-3.356-1.597-6.428-4.667-7.753ZM9.277 14.16c-1.333 0-2.41-1.21-2.41-2.703 0-1.494.974-2.703 2.41-2.703 1.436 0 2.41 1.21 2.41 2.703 0 1.493-.974 2.703-2.41 2.703Zm9.222 0c-1.333 0-2.41-1.21-2.41-2.703 0-1.494.974-2.703 2.41-2.703 1.436 0 2.41 1.21 2.41 2.703 0 1.493-.974 2.703-2.41 2.703Z"/></svg></a>);
+        const StatusCircle = ({ isMain }) => (<div className={`w-5 h-5 rounded-full border-2 transition-colors ${isMain ? 'bg-amber-400 border-amber-400' : 'border-gray-300 group-hover:border-gray-400'}`}></div>);
+        const ProjectIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>);
+        const ServicesIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>);
+        const AccountsIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>);
+        const LockIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>);
+        const UnlockIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>);
+        const DragHandleIcon = () => ( <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" className="cursor-grab text-slate-300 group-hover:text-slate-500 transition-colors"><circle cx="9" cy="5" r="1.5" /><circle cx="15" cy="5" r="1.5" /><circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" /><circle cx="9" cy="19" r="1.5" /><circle cx="15" cy="19" r="1.5" /></svg> );
+        const ArchiveIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 group-hover:text-green-500 transition-colors"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg> );
+        const RestoreIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 group-hover:text-green-500 transition-colors"><polyline points="21 12 16 7 16 10 3 10 3 14 16 14 16 17 21 12"></polyline></svg> );
+        const PlusIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> );
+        const PaletteIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.5-2.449 5.5-5.5S17.051 2 14 2h-2z"/></svg>);
+
+
+        const defaultData = {
+            layout: [
+                { id: 'projects_main', title: 'Projects', type: 'projectTable', category: 'mainProjects' },
+                { id: 'services_main', title: 'Services', type: 'sites', dataKey: 'defaultSites' },
+                { id: 'accounts_main', title: 'Accounts', type: 'accounts', dataKey: 'defaultAccounts' },
+            ],
+            projects: [],
+            sites: { defaultSites: [] },
+            accounts: { defaultAccounts: [] },
+            reminders: [],
+            accountColumns: [
+                { id: 'nickname', name: 'Nickname' }, 
+                { id: 'evm', name: 'EVM' },
+                { id: 'sol', name: 'SOL' },
+                { id: 'binance_sub', name: 'Binance Sub' },
+                { id: 'bybit_sub', name: 'Bybit Sub' },
+                { id: 'debank', name: 'Debank' },
+                { id: 'proxy', name: 'Proxy' },
+                { id: 'icloud', name: 'iCloud' },
+                { id: 'rambler', name: 'Rambler' },
+                { id: 'twitter', name: 'Twitter' }, 
+                { id: 'discord', name: 'Discord' }
+            ],
+            tagColors: {}
+        };
+        
+        const ProjectRow = React.memo(({ project, onToggle, onToggleArchive, onEdit, onDelete, tagColors, onOpenNotes, onDragStart, onDragOver, onDrop, isLocked }) => {
+            const getInitialsBgColor = (project) => {
+                if (project.tag) {
+                    const firstTag = project.tag.split(',')[0].trim().toLowerCase();
+                    return tagColors[firstTag] || '#64748b';
+                }
+                return '#64748b';
+            }
+
+            return (
+                 <tr draggable={!isLocked && !project.isArchived} onDragStart={(e) => onDragStart(e, project)} onDragOver={onDragOver} onDrop={(e) => onDrop(e, project)} className={`bg-white border-b hover:bg-gray-50 group ${project.isArchived ? 'opacity-60' : ''}`}>
+                    <th scope="row" className="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">
+                        <div className="flex items-center space-x-3 relative">
+                             {!isLocked && !project.isArchived && <div className="absolute left-[-20px] opacity-0 group-hover:opacity-100 transition-opacity"><DragHandleIcon/></div>}
+                            {project.logoUrl ? 
+                                (<img className="w-6 h-6 rounded-full object-cover flex-shrink-0" src={project.logoUrl} alt={project.name} onError={(e) => { e.target.onerror = null; e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }}/>) 
+                                : null
+                            }
+                            <div style={{backgroundColor: getInitialsBgColor(project)}} className={`w-6 h-6 rounded-full text-white flex items-center justify-center font-bold text-xs flex-shrink-0 ${project.logoUrl ? 'hidden' : 'flex'}`}>{project.name.substring(0, 2)}</div>
+                            <div className="flex items-center">
+                                <a href={project.projectUrl || '#'} target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 font-semibold text-sm">{project.name}</a>
+                                 {!isLocked && 
+                                    <div className="flex items-center space-x-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => onOpenNotes(project)} className="p-1 hover:bg-gray-100 rounded-md"><NoteIcon hasNotes={!!project.notes} /></button>
+                                        <button onClick={() => onToggleArchive(project.id, project.isArchived)} className="p-1 hover:bg-gray-100 rounded-md">{project.isArchived ? <RestoreIcon /> : <ArchiveIcon />}</button>
+                                        <button onClick={() => onEdit(project)} className="p-1 hover:bg-gray-100 rounded-md"><EditIcon /></button>
+                                        <button onClick={() => onDelete(project)} className="p-1 hover:bg-gray-100 rounded-md"><TrashIcon /></button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </th>
+                    <td className="px-2 py-2">
+                        <div className="flex items-center gap-1">
+                            {(project.tag || '').split(',').map(t => t.trim()).filter(Boolean).map(t => (
+                                <span key={t} className="text-white text-[10px] font-semibold px-2 py-0.5 rounded-md" style={{backgroundColor: tagColors[t.toLowerCase()] || '#d1d5db'}}>{t}</span>
+                            ))}
+                        </div>
+                    </td>
+                    <td className="px-2 py-2"><div className="flex items-center space-x-2"><TwitterIcon hasUrl={project.twitterUrl} /><DiscordIcon hasUrl={project.discordUrl} /></div></td>
+                    <td className="px-2 py-2 text-center">
+                        <button onClick={() => onToggle(project, 'isMain')} className="flex items-center justify-center w-full h-full">
+                            <StatusCircle isMain={project.isMain} />
+                        </button>
+                    </td>
+                    {(project.steps || []).map((step, i) => (
+                        <td key={i} className="px-1 py-2 text-center">
+                            <button onClick={() => onToggle(project, 'steps', i)} className="w-5 h-5 flex items-center justify-center mx-auto rounded-full transition-colors">
+                                <div className="w-5 h-5 rounded-full border-2" style={{
+                                    backgroundColor: step === true ? 'var(--accent-color)' : 'transparent',
+                                    borderColor: step === true ? 'var(--accent-color)' : (step === null ? 'transparent' : '#cbd5e1'),
+                                }}></div>
+                            </button>
+                        </td>
+                    ))}
+                </tr>
+            );
+        });
+
+        const ProjectTable = ({ projects, isLoading, onToggle, onToggleArchive, onEdit, onDelete, tagColors, onOpenNotes, showArchived, setShowArchived, onReorder, isLocked }) => {
+            const activeProjects = useMemo(() => projects.filter(p => !p.isArchived).sort((a,b) => a.order - b.order), [projects]);
+            const archivedProjects = useMemo(() => projects.filter(p => p.isArchived), [projects]);
+
+            const handleDragStart = (e, project) => { if(!isLocked) {e.dataTransfer.setData('projectId', project.id);} };
+            const handleDragOver = (e) => { if(!isLocked) e.preventDefault(); };
+            const handleDrop = (e, targetProject) => {
+                if(isLocked) return;
+                const draggedId = e.dataTransfer.getData('projectId');
+                if (draggedId === targetProject.id) return;
+                const targetIndex = activeProjects.findIndex(p => p.id === targetProject.id);
+                const orderBefore = targetIndex > 0 ? activeProjects[targetIndex - 1].order : 0;
+                const orderAfter = targetProject.order;
+                onReorder(draggedId, (orderBefore + orderAfter) / 2);
+            };
+
+            return (
+                 <div className="overflow-x-auto">
+                    <table className="text-xs text-left text-gray-500 w-full">
+                        <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                            <tr>
+                                <th scope="col" className="px-3 py-2 w-[25%] font-semibold">Project</th>
+                                <th scope="col" className="px-2 py-2 font-semibold">Type</th>
+                                <th scope="col" className="px-2 py-2 font-semibold">Links</th>
+                                <th scope="col" className="px-2 py-2 text-center font-semibold">Main</th>
+                                {[...Array(10)].map((_, i) => <th key={i} scope="col" className="px-1 py-2 text-center font-semibold">{i + 1}</th>)}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {isLoading ? ([...Array(3)].map((_, i) => <SkeletonRow key={i} isProject/>)) : 
+                            activeProjects.length === 0 ? (<tr><td colSpan="14" className="text-center p-6 text-sm text-gray-500">No active projects.</td></tr>) : 
+                            (activeProjects.map((p) => <ProjectRow key={p.id} project={p} onToggle={onToggle} onToggleArchive={onToggleArchive} onEdit={onEdit} onDelete={onDelete} tagColors={tagColors} onOpenNotes={onOpenNotes} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} isLocked={isLocked}/>))}
+                        </tbody>
+                    </table>
+                     {archivedProjects.length > 0 && (
+                        <div className="p-4">
+                            <button onClick={() => setShowArchived(!showArchived)} className="text-xs font-medium text-gray-500 hover:text-gray-800">
+                                {showArchived ? 'Hide' : 'Show'} Archived ({archivedProjects.length})
+                            </button>
+                            {showArchived && (
+                                <div className="mt-2 overflow-x-auto">
+                                    <table className="text-xs text-left text-gray-500 w-full">
+                                        <tbody>
+                                            {archivedProjects.map((p) => <ProjectRow key={p.id} project={p} onToggle={onToggle} onToggleArchive={onToggleArchive} onEdit={onEdit} onDelete={onDelete} tagColors={tagColors} onOpenNotes={onOpenNotes} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} isLocked={isLocked}/>)}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+        
+        const SkeletonRow = ({ isProject }) => (
+            <tr className="animate-pulse bg-white border-b">
+                <th scope="row" className="px-3 py-2"><div className="flex items-center space-x-3"><div className="w-6 h-6 rounded-full bg-gray-200"></div><div className="h-4 bg-gray-200 rounded w-3/4"></div></div></th>
+                <td className="px-2 py-2"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
+                <td className="px-2 py-2"><div className="flex space-x-2"><div className="w-5 h-5 bg-gray-200 rounded"></div><div className="w-5 h-5 bg-gray-200 rounded"></div></div></td>
+                { isProject && <td className="px-2 py-2 text-center"><div className="w-5 h-5 bg-gray-200 rounded-full mx-auto"></div></td> }
+                { isProject && [...Array(10)].map((_, i) => <td key={i} className="px-1 py-2 text-center"><div className="w-5 h-5 bg-gray-200 rounded-full mx-auto"></div></td>)}
+            </tr>
+        );
+        
+        const SitesSection = ({ sites, onEditSite, onDeleteSite, isLocked }) => {
+            const groupedSites = Object.entries((sites || []).reduce((acc, site) => {
+                const category = site.category || 'Other';
+                if (!acc[category]) acc[category] = [];
+                acc[category].push(site);
+                return acc;
+            }, {}));
+        
+            return (
+                 <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
+                    {groupedSites.length === 0 ? <p className="text-gray-500 col-span-full text-center p-6 text-sm">No sites added yet.</p> :
+                        groupedSites.map(([category, siteList]) => (
+                            <div key={category} className="bg-white/50 p-3 rounded-lg border border-slate-200/60">
+                                <h3 className="text-xs font-bold mb-2 text-gray-800">{category}</h3>
+                                <ul className="space-y-1.5">
+                                    {siteList.map(site => (
+                                        <li key={site.id} className="group flex items-center justify-between">
+                                            <a href={site.url} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2 text-xs text-gray-600 hover:text-indigo-600">
+                                                <img src={site.logoUrl || `https://www.google.com/s2/favicons?domain=${site.url}&sz=32`} alt={site.name} className="w-4 h-4 object-contain" onError={(e) => { e.target.style.display='none'; }} />
+                                                <span>{site.name}</span>
+                                            </a>
+                                            {!isLocked && <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => onEditSite(site)} className="p-1 hover:bg-gray-100 rounded-md"><EditIcon /></button>
+                                                <button onClick={() => onDeleteSite(site)} className="p-1 hover:bg-gray-100 rounded-md"><TrashIcon /></button>
+                                            </div>}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ))
+                    }
+                </div>
+            );
+        };
+        
+        const AccountsTable = ({ accounts, columns, onEditAccount, onDeleteAccount, showNotification, isLocked }) => {
+             const handleCopy = (text) => {
+                if (!text) return;
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showNotification('Copied!');
+                } catch (err) {
+                    showNotification('Failed to copy!');
+                }
+                document.body.removeChild(textArea);
+            };
+        
+            return (
+                <div className="overflow-x-auto">
+                    <table className="text-xs text-left text-gray-500 w-full table-fixed">
+                        <thead className="text-xs text-gray-700 bg-gray-50">
+                            <tr>
+                                {columns.map(col => <th key={col.id} className="px-2 py-2 font-semibold">{col.name}</th>)}
+                                <th scope="col" className="px-2 py-2 w-14"><span className="sr-only">Actions</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {accounts.length === 0 ? (<tr><td colSpan={columns.length + 1} className="text-center p-6 text-sm">No accounts yet.</td></tr>) :
+                                accounts.map(acc => (
+                                    <tr key={acc.id} className="bg-white border-b hover:bg-gray-50 group">
+                                        {columns.map(col => <td key={col.id} className="px-2 py-1.5 whitespace-nowrap overflow-hidden text-ellipsis truncate-cell" title={acc.data[col.id]} onClick={() => handleCopy(acc.data[col.id])}>{acc.data[col.id]}</td>)}
+                                        <td className="px-2 py-1.5">
+                                            {!isLocked && <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => onEditAccount(acc)} className="p-1 hover:bg-gray-100 rounded-md"><EditIcon /></button>
+                                                <button onClick={() => onDeleteAccount(acc)} className="p-1 hover:bg-gray-100 rounded-md"><TrashIcon /></button>
+                                            </div>}
+                                        </td>
+                                    </tr>
+                                ))
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            );
+        };
+        
+        const ProjectModal = ({ project, onSubmit, onClose, tagColors }) => {
+            const [formData, setFormData] = useState({ name: project?.name || '', logoUrl: project?.logoUrl || '', projectUrl: project?.projectUrl || '', twitterUrl: project?.twitterUrl || '', discordUrl: project?.discordUrl || '', tag: project?.tag || '' });
+            const [selectedColor, setSelectedColor] = useState(() => (project && project.tag && tagColors[project.tag.split(',')[0].trim().toLowerCase()]) || '#4f46e5');
+            const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+            const handleSubmit = (e) => { e.preventDefault(); if(!formData.name) { return; } onSubmit({...formData, newTagColor: selectedColor}); };
+            const tagColorPalette = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'];
+
+            return (<div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+                <div className="bg-white rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+                    <div className="p-5 border-b"><h3 className="text-lg font-semibold">{project ? 'Edit Project' : 'Add New Project'}</h3></div>
+                    <form onSubmit={handleSubmit}>
+                        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                            <div><label className="block mb-1.5 text-xs font-medium text-gray-600">Project Name *</label><input type="text" name="name" value={formData.name} onChange={handleChange} className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" required /></div>
+                             <div><label className="block mb-1.5 text-xs font-medium text-gray-600">Logo URL</label><input type="text" name="logoUrl" value={formData.logoUrl} onChange={handleChange} className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" /></div>
+                            <div><label className="block mb-1.5 text-xs font-medium text-gray-600">Tag (comma-separated)</label><input type="text" name="tag" value={formData.tag} onChange={handleChange} className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" /></div>
+                            <div><label className="block mb-1.5 text-xs font-medium text-gray-600">Tag Color</label><div className="flex flex-wrap gap-2">{tagColorPalette.map(color => (<button key={color} type="button" onClick={() => setSelectedColor(color)} className={`w-6 h-6 rounded-full border-2 transition-all ${selectedColor === color ? 'border-gray-800 scale-110' : 'border-transparent'}`} style={{backgroundColor: color}} />))}</div></div>
+                            <div><label className="block mb-1.5 text-xs font-medium text-gray-600">Project URL</label><input type="text" name="projectUrl" value={formData.projectUrl} onChange={handleChange} className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" /></div>
+                            <div><label className="block mb-1.5 text-xs font-medium text-gray-600">Twitter URL</label><input type="text" name="twitterUrl" value={formData.twitterUrl} onChange={handleChange} className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" /></div>
+                            <div><label className="block mb-1.5 text-xs font-medium text-gray-600">Discord URL</label><input type="text" name="discordUrl" value={formData.discordUrl} onChange={handleChange} className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" /></div>
+                        </div>
+                        <div className="flex items-center justify-end p-4 bg-gray-50 rounded-b-lg space-x-2">
+                            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-lg border border-gray-300 hover:bg-gray-100">Cancel</button>
+                            <button type="submit" className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-indigo-600 hover:bg-indigo-700">{project ? 'Save Changes' : 'Create Project'}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>);
+        };
+        
+        const NotesModal = ({ project, onSave, onClose }) => {
+            const [notes, setNotes] = useState(project.notes || '');
+            const handleSave = () => { onSave(project.id, { notes }); onClose(); };
+            return (<div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+                <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+                    <div className="p-5 border-b"><h3 className="text-lg font-semibold">Notes for {project.name}</h3></div>
+                    <div className="p-5 flex-grow"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full h-96 bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-3 resize-none" placeholder="Write your notes here..."/></div>
+                    <div className="flex items-center justify-end p-4 bg-gray-50 rounded-b-lg space-x-2">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-lg border border-gray-300 hover:bg-gray-100">Cancel</button>
+                        <button type="button" onClick={handleSave} className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-indigo-600 hover:bg-indigo-700">Save Notes</button>
+                    </div>
+                </div>
+            </div>);
+        };
+
+        const SiteModal = ({ site, onSubmit, onClose }) => {
+            const [formData, setFormData] = useState({ name: site?.name || '', url: site?.url || '', logoUrl: site?.logoUrl || '', category: site?.category || 'Cex' });
+            const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+            const handleSubmit = (e) => { e.preventDefault(); if (!formData.name || !formData.url || !formData.category) { return; } onSubmit(formData); };
+            return (<div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+                <div className="bg-white rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+                    <div className="p-5 border-b"><h3 className="text-lg font-semibold">{site ? 'Edit Site' : 'Add New Site'}</h3></div>
+                    <form onSubmit={handleSubmit}><div className="p-5 space-y-4">
+                        <div><label className="block mb-1.5 text-xs font-medium text-gray-600">Site Name *</label><input type="text" name="name" value={formData.name} onChange={handleChange} className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" required /></div>
+                        <div><label className="block mb-1.5 text-xs font-medium text-gray-600">Site URL *</label><input type="text" name="url" value={formData.url} onChange={handleChange} className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" required /></div>
+                        <div><label className="block mb-1.5 text-xs font-medium text-gray-600">Category *</label><input type="text" name="category" value={formData.category} onChange={handleChange} className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" required /></div>
+                    </div>
+                    <div className="flex items-center justify-end p-4 bg-gray-50 rounded-b-lg space-x-2">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-lg border border-gray-300 hover:bg-gray-100">Cancel</button>
+                        <button type="submit" className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-indigo-600 hover:bg-indigo-700">{site ? 'Save Changes' : 'Add Site'}</button>
+                    </div></form>
+                </div>
+            </div>);
+        };
+        
+        const AccountModal = ({ account, columns, onSubmit, onClose }) => {
+            const [formData, setFormData] = useState(account?.data || {});
+            const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+            const handleSubmit = (e) => { e.preventDefault(); if (!formData.nickname) { return; } onSubmit(formData); };
+            return (<div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+                <div className="bg-white rounded-lg shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+                    <div className="p-5 border-b"><h3 className="text-lg font-semibold">{account ? 'Edit Account' : 'Add Account'}</h3></div>
+                    <form onSubmit={handleSubmit}>
+                        <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto">
+                            {columns.map(col => (<div key={col.id}><label className="block mb-1.5 text-xs font-medium text-gray-600">{col.name} {col.id === 'nickname' && '*'}</label><input type="text" name={col.id} value={formData[col.id] || ''} onChange={handleChange} className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5" required={col.id === 'nickname'}/></div>))}
+                        </div>
+                        <div className="flex items-center justify-end p-4 bg-gray-50 rounded-b-lg space-x-2">
+                            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-lg border border-gray-300 hover:bg-gray-100">Cancel</button>
+                            <button type="submit" className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-indigo-600 hover:bg-indigo-700">{account ? 'Save Changes' : 'Add Account'}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>);
+        };
+
+        const CustomizeColumnsModal = ({ columns, onSave, onClose }) => {
+            const [localColumns, setLocalColumns] = useState(columns);
+            const [newColumnName, setNewColumnName] = useState('');
+            const handleRename = (index, newName) => { const updated = [...localColumns]; updated[index].name = newName; setLocalColumns(updated); };
+            const handleAdd = () => { if (newColumnName.trim() === '') return; const newId = newColumnName.toLowerCase().replace(/\s+/g, '_'); setLocalColumns([...localColumns, { id: newId, name: newColumnName.trim() }]); setNewColumnName(''); };
+            const handleDelete = (index) => { if (localColumns[index].id === 'nickname') { return; } setLocalColumns(localColumns.filter((_, i) => i !== index)); };
+            return (<div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50 p-4" onClick={onClose}><div className="bg-white rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}><div className="p-5 border-b"><h3 className="text-lg font-semibold">Customize Columns</h3></div><div className="p-5 space-y-3 max-h-96 overflow-y-auto">{localColumns.map((col, index) => (<div key={index} className="flex items-center space-x-2"><input type="text" value={col.name} onChange={(e) => handleRename(index, e.target.value)} className="flex-grow bg-gray-50 border border-gray-300 text-sm rounded-lg p-2.5 focus:ring-indigo-500 focus:border-indigo-500"/><button onClick={() => handleDelete(index)} disabled={col.id === 'nickname'} className="disabled:opacity-50 disabled:cursor-not-allowed p-2 hover:bg-gray-100 rounded-md"><TrashIcon /></button></div>))}<div className="flex items-center space-x-2 pt-2 border-t border-gray-200"><input type="text" value={newColumnName} onChange={(e) => setNewColumnName(e.target.value)} placeholder="New column name..." className="flex-grow bg-gray-50 border border-gray-300 text-sm rounded-lg p-2.5 focus:ring-indigo-500 focus:border-indigo-500"/><button onClick={handleAdd} className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-indigo-600 hover:bg-indigo-700">Add</button></div></div><div className="flex items-center justify-end p-4 bg-gray-50 rounded-b-lg space-x-2"><button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-lg border border-gray-300 hover:bg-gray-100">Cancel</button><button type="button" onClick={() => onSave(localColumns)} className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-indigo-600 hover:bg-indigo-700">Save</button></div></div></div>);
+        };
+        
+        const SectionModal = ({ section, onSave, onClose }) => {
+            const [title, setTitle] = useState(section ? section.title : '');
+            const [type, setType] = useState(section ? section.type : 'projectTable');
+            const handleSubmit = (e) => { e.preventDefault(); if (title.trim() === '') { return; } onSave(section ? section.id : null, title, type); }
+            return (<div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50 p-4" onClick={onClose}><div className="bg-white rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}><div className="p-5 border-b"><h3 className="text-lg font-semibold">{section ? 'Edit Section' : 'Add New Section'}</h3></div><form onSubmit={handleSubmit}><div className="p-5 space-y-4"><div><label className="block mb-1.5 text-xs font-medium">Section Title</label><input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="bg-gray-50 border border-gray-300 text-sm rounded-lg w-full p-2.5 focus:ring-indigo-500 focus:border-indigo-500"/></div>{!section && (<div><label className="block mb-1.5 text-xs font-medium">Section Type</label><select value={type} onChange={(e) => setType(e.target.value)} className="bg-gray-50 border border-gray-300 text-sm rounded-lg w-full p-2.5 focus:ring-indigo-500 focus:border-indigo-500"><option value="projectTable">Project Table</option><option value="sites">Services</option><option value="accounts">Accounts</option></select></div>)}</div><div className="flex items-center justify-end p-4 bg-gray-50 rounded-b-lg space-x-2"><button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-lg border border-gray-300 hover:bg-gray-100">Cancel</button><button type="submit" className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-indigo-600 hover:bg-indigo-700">Save</button></div></form></div></div>);
+        };
+
+        const DeleteConfirmationModal = ({ name, onConfirm, onCancel }) => {
+            return (<div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50 p-4" onClick={onCancel}>
+                <div className="bg-white rounded-lg shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                    <div className="p-6 text-center">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Deletion</h3>
+                        <p className="text-sm text-gray-500 mb-6">Are you sure you want to delete <span className="font-bold text-gray-800">{name}</span>? This action cannot be undone.</p>
+                    </div>
+                    <div className="flex items-center justify-center p-4 bg-gray-50 rounded-b-lg space-x-3">
+                        <button type="button" onClick={onCancel} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-lg border border-gray-300 hover:bg-gray-100 w-full">Cancel</button>
+                        <button type="button" onClick={onConfirm} className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg w-full">Delete</button>
+                    </div>
+                </div>
+            </div>);
+        }
+        
+        const ThemeModal = ({ setTheme, onClose }) => {
+            const themes = [
+                { name: 'Default', bg: '#F8F9FA', sidebar: '#FFFFFF', accent: '#4f46e5', text: '#374151' },
+                { name: 'Synthwave', bg: '#191B2A', sidebar: '#2C2F48', accent: '#B24BFF', text: '#ECF0F1' },
+                { name: 'Crimson', bg: '#ECF0F1', sidebar: '#FFFFFF', accent: '#E74C3C', text: '#2C3E50' },
+                { name: 'Forest', bg: '#F0FDF4', sidebar: '#FFFFFF', accent: '#16A34A', text: '#1F2937' },
+                { name: 'Ocean', bg: '#EFF6FF', sidebar: '#FFFFFF', accent: '#2563EB', text: '#1E3A8A' },
+                { name: 'Rose', bg: '#FFF1F2', sidebar: '#FFFFFF', accent: '#E11D48', text: '#881337' },
+                { name: 'Slate', bg: '#F8FAFC', sidebar: '#FFFFFF', accent: '#64748B', text: '#1E293B' },
+                { name: 'Dark', bg: '#111827', sidebar: '#1F2937', accent: '#38BDF8', text: '#E5E7EB' },
+            ];
+            return (
+                 <div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-xs" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 border-b"><h3 className="text-lg font-semibold">Select Theme</h3></div>
+                        <div className="p-5"><div className="flex flex-wrap gap-4">{themes.map(t => (<button key={t.name} onClick={() => setTheme(t)} className="w-12 h-12 rounded-full border-2 transition-all hover:scale-110" style={{ backgroundColor: t.bg }} title={t.name} />))}</div></div>
+                        <div className="flex items-center justify-end p-4 bg-gray-50 rounded-b-lg">
+                            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-lg border border-gray-300 hover:bg-gray-100">Close</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        const Reminders = ({ reminders, onAdd, onUpdate, onDelete, isLocked }) => {
+            const [newReminder, setNewReminder] = useState('');
+            const [editingId, setEditingId] = useState(null);
+            const [editText, setEditText] = useState('');
+
+            const handleAdd = () => {
+                if (newReminder.trim()) {
+                    onAdd({ id: Date.now().toString(), text: newReminder.trim() });
+                    setNewReminder('');
+                }
+            };
+
+            const handleUpdate = (id) => {
+                if(editText.trim()) {
+                    onUpdate(id, editText.trim());
+                    setEditingId(null);
+                } else {
+                    onDelete(id);
+                    setEditingId(null);
+                }
+            };
+            
+            return (
+                <div className="p-4 border-t border-gray-200 h-64 flex flex-col">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Reminders</h3>
+                    <div className="mt-3 space-y-2 flex-1 overflow-y-auto">
+                        {(reminders || []).map(r => (
+                            <div key={r.id} className="text-sm text-gray-600 group flex items-center justify-between">
+                                {editingId === r.id ? (
+                                    <input 
+                                        type="text" 
+                                        value={editText} 
+                                        onChange={(e) => setEditText(e.target.value)} 
+                                        onBlur={() => handleUpdate(r.id)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleUpdate(r.id)}
+                                        className="w-full bg-gray-100 rounded-md p-1 text-sm"
+                                        autoFocus
+                                    />
+                                ) : (
+                                    <span className="flex-1 pr-2">{r.text}</span>
+                                )}
+                                {!isLocked && <div className="flex items-center opacity-0 group-hover:opacity-100">
+                                    <button onClick={() => { setEditingId(r.id); setEditText(r.text); }} className="p-1 hover:bg-gray-200 rounded-md"><EditIcon/></button>
+                                    <button onClick={() => onDelete(r.id)} className="p-1 hover:bg-gray-200 rounded-md"><TrashIcon/></button>
+                                </div>}
+                            </div>
+                        ))}
+                    </div>
+                     {!isLocked && <div className="mt-2 flex items-center space-x-2">
+                         <input 
+                            type="text" 
+                            value={newReminder}
+                            onChange={(e) => setNewReminder(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                            placeholder="Add reminder..."
+                            className="w-full text-sm bg-gray-100 border-transparent rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent px-2 py-1"
+                         />
+                         <button onClick={handleAdd} className="p-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"><PlusIcon /></button>
+                     </div>}
+                </div>
+            )
+        };
+        
+        function App() {
+            const [data, setData] = useState(null);
+            const [isLoading, setIsLoading] = useState(true);
+            const [globalSearchTerm, setGlobalSearchTerm] = useState('');
+            const [activeView, setActiveView] = useState('projects_main');
+            const [notification, setNotification] = useState('');
+            const fileInputRef = useRef(null);
+            const [modal, setModal] = useState({ type: null, data: null });
+            const [isLocked, setIsLocked] = useState(false);
+            const [showArchived, setShowArchived] = useState({});
+            
+            const [theme, setTheme] = useState(() => {
+                try {
+                    const savedTheme = localStorage.getItem('workspaceThemeV8');
+                    return savedTheme ? JSON.parse(savedTheme) : { bg: '#F8F9FA', sidebar: '#FFFFFF', accent: '#4f46e5', text: '#374151' };
+                } catch { return { bg: '#F8F9FA', sidebar: '#FFFFFF', accent: '#4f46e5', text: '#374151' }; }
+            });
+
+            useEffect(() => { 
+                try { 
+                    const d = localStorage.getItem('workspaceDataV27'); 
+                    setData(d ? JSON.parse(d) : defaultData); 
+                } catch(e) { setData(defaultData); } 
+                setIsLoading(false); 
+            }, []);
+
+            useEffect(() => { if(!isLoading && data) localStorage.setItem('workspaceDataV27', JSON.stringify(data)); }, [data, isLoading]);
+
+             useEffect(() => {
+                const root = document.documentElement;
+                root.style.setProperty('--bg-color', theme.bg);
+                root.style.setProperty('--sidebar-bg', theme.sidebar);
+                root.style.setProperty('--main-bg', theme.sidebar);
+                root.style.setProperty('--accent-color', theme.accent);
+                root.style.setProperty('--text-color', theme.text);
+                localStorage.setItem('workspaceThemeV8', JSON.stringify(theme));
+            }, [theme]);
+
+            const showNotification = (text) => { setNotification(text); setTimeout(() => setNotification(''), 2000); };
+            const createNewId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+            const handleExportData = () => { const s = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data))}`; const l = document.createElement("a"); l.href = s; l.download = "workspace_backup.json"; l.click(); showNotification("Data Exported!"); };
+            const handleImportClick = () => { fileInputRef.current.click(); };
+            const handleImportData = (e) => { const r = new FileReader(); if (e.target.files.length === 0) return; r.readAsText(e.target.files[0], "UTF-8"); r.onload = evt => { try { const d = JSON.parse(evt.target.result); if (typeof d==='object' && d!==null && 'projects' in d) { setData(d); showNotification("Data Imported!"); } else { throw new Error("Invalid data format"); } } catch (err) { showNotification("Error importing file!"); } }; e.target.value = null; };
+            
+            const handleProjectSubmit = useCallback((formData) => {
+                setData(p => {
+                    const newData = {...p};
+                    const newTagColors = { ...p.tagColors };
+                    if (formData.tag) {
+                        formData.tag.split(',').map(t => t.trim().toLowerCase()).filter(Boolean).forEach(t => {
+                            newTagColors[t] = formData.newTagColor;
+                        });
+                    }
+                    newData.tagColors = newTagColors;
+
+                    if (modal.data?.project) {
+                        newData.projects = p.projects.map(i => i.id === modal.data.project.id ? { ...i, ...formData } : i);
+                    } else {
+                        const newProject = { id: createNewId(), ...formData, isMain: false, isArchived: false, steps: Array(10).fill(false), order: Date.now(), category: modal.data.category };
+                        newData.projects = [...p.projects, newProject];
+                    }
+                    return newData;
+                });
+                setModal({ type: null, data: null });
+            }, [modal.data]);
+
+            const handleDeleteProject = useCallback(() => { setData(p => ({ ...p, projects: p.projects.filter(i => i.id !== modal.data.id) })); setModal({ type: null, data: null }); }, [modal.data]);
+            
+            const handleToggle = useCallback((project, field, index = null) => {
+                setData(currentData => {
+                    const projectToUpdate = currentData.projects.find(p => p.id === project.id);
+                    if (!projectToUpdate) return currentData;
+
+                    let updatedProject;
+
+                    if (field === 'steps') {
+                        const newSteps = [...projectToUpdate.steps];
+                        const currentValue = newSteps[index];
+                        newSteps[index] = currentValue === false ? true : (currentValue === true ? null : false);
+                        updatedProject = { ...projectToUpdate, steps: newSteps };
+                    } else {
+                        updatedProject = { ...projectToUpdate, [field]: !projectToUpdate[field] };
+                    }
+                    
+                    return {
+                        ...currentData,
+                        projects: currentData.projects.map(p => p.id === project.id ? updatedProject : p)
+                    };
+                });
+            }, []);
+            
+            const handleUpdateProject = useCallback((projectId, updatedData) => {
+                setData(p => ({
+                    ...p,
+                    projects: p.projects.map(i => i.id === projectId ? { ...i, ...updatedData } : i)
+                }));
+            }, []);
+
+            const resetProgress = useCallback((category) => { setData(p => ({...p, projects: p.projects.map(proj => (proj.category === category && !proj.isArchived) ? ({...proj, steps: proj.steps.map(s => s === true ? false : s), isMain: false}) : proj) })); showNotification("Progress Reset!"); }, []);
+            const handleReorderProject = useCallback((projectId, newOrder) => { handleUpdateProject(projectId, { order: newOrder })}, [handleUpdateProject]);
+            const handleToggleArchive = useCallback((projectId, isArchived) => { handleUpdateProject(projectId, { isArchived: !isArchived })}, [handleUpdateProject]);
+
+            const handleSiteSubmit = useCallback((formData) => {
+                const key = modal.data.dataKey;
+                setData(p => {
+                    const newSites = {...p.sites};
+                    if (modal.data?.site) {
+                        newSites[key] = p.sites[key].map(s => s.id === modal.data.site.id ? {...s, ...formData} : s);
+                    } else {
+                        const newSite = { id: createNewId(), ...formData };
+                        newSites[key] = [...(p.sites[key] || []), newSite];
+                    }
+                    return {...p, sites: newSites};
+                });
+                setModal({ type: null, data: null });
+            }, [modal.data]);
+            const handleDeleteSite = useCallback(() => { setData(p => ({ ...p, sites: {...p.sites, [modal.data.dataKey]: p.sites[modal.data.dataKey].filter(s => s.id !== modal.data.id) }})); setModal({ type: null, data: null }); }, [modal.data]);
+            
+            const handleAccountSubmit = useCallback((formData) => {
+                const key = modal.data.dataKey;
+                setData(p => {
+                     const newAccounts = {...p.accounts};
+                     if (modal.data?.account) {
+                         newAccounts[key] = p.accounts[key].map(a => a.id === modal.data.account.id ? { ...a, data: formData } : a);
+                    } else {
+                        const newAccount = { id: createNewId(), data: formData };
+                        newAccounts[key] = [...(p.accounts[key] || []), newAccount];
+                    }
+                    return {...p, accounts: newAccounts};
+                });
+                setModal({ type: null, data: null });
+            }, [modal.data]);
+            const handleDeleteAccount = useCallback(() => { setData(p => ({ ...p, accounts: {...p.accounts, [modal.data.dataKey]: p.accounts[modal.data.dataKey].filter(a => a.id !== modal.data.id) }})); setModal({ type: null, data: null }); }, [modal.data]);
+            const handleSaveColumns = useCallback((newColumns) => { setData(p => ({ ...p, accountColumns: newColumns })); setModal({type: null, data: null}); }, []);
+            
+            const handleSectionSubmit = useCallback((sectionId, title, type) => {
+                setData(p => {
+                    const newData = {...p};
+                    if (sectionId) {
+                        newData.layout = p.layout.map(s => s.id === sectionId ? {...s, title: title} : s);
+                    } else {
+                        const newId = createNewId();
+                        const newSection = { id: newId, title, type, category: type === 'projectTable' ? createNewId() : null, dataKey: type !== 'projectTable' ? newId : null };
+                        newData.layout = [...p.layout, newSection];
+                        if(type === 'sites') newData.sites[newId] = [];
+                        if(type === 'accounts') newData.accounts[newId] = [];
+                    }
+                    return newData;
+                });
+                setModal({type: null, data: null});
+            }, []);
+            const handleDeleteSection = useCallback(() => { setData(p => ({ ...p, layout: p.layout.filter(s => s.id !== modal.data.id) })); setModal({ type: null, data: null }); }, [modal.data]);
+            
+            const handleReminderUpdate = useCallback((id, newText) => { setData(p => ({...p, reminders: p.reminders.map(r => r.id === id ? {...r, text: newText} : r)})); }, []);
+            const handleReminderAdd = useCallback((newReminder) => { setData(p => ({...p, reminders: [...(p.reminders || []), newReminder]}));}, []);
+            const handleReminderDelete = useCallback((id) => { setData(p => ({...p, reminders: p.reminders.filter(r => r.id !== id)})); }, []);
+
+
+            const filteredData = useMemo(() => { 
+                if (!data) return { projects: [], sites: {}, accounts: {} };
+                if (!globalSearchTerm) return data;
+                const l = globalSearchTerm.toLowerCase(); 
+                const filteredSites = Object.keys(data.sites || {}).reduce((acc, key) => ({ ...acc, [key]: data.sites[key].filter(i => i.name.toLowerCase().includes(l) || i.category.toLowerCase().includes(l)) }), {});
+                const filteredAccounts = Object.keys(data.accounts || {}).reduce((acc, key) => ({ ...acc, [key]: data.accounts[key].filter(i => Object.values(i.data).some(v => v?.toString().toLowerCase().includes(l))) }), {});
+                return { 
+                    ...data, 
+                    projects: data.projects.filter(i => i.name.toLowerCase().includes(l) || (i.tag && i.tag.toLowerCase().includes(l))),
+                    sites: filteredSites,
+                    accounts: filteredAccounts,
+                }; 
+            }, [data, globalSearchTerm]);
+
+            const Sidebar = () => (
+                 <aside className="w-56 flex-shrink-0 bg-[var(--sidebar-bg)] border-r border-[var(--border-color)] flex flex-col">
+                    <div className="h-14 flex items-center px-4 border-b border-[var(--border-color)]"><h1 className="text-lg font-bold text-[var(--text-color)]">Workspace</h1></div>
+                     <div className="p-2"><div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><SearchIcon /></div>
+                        <input type="text" placeholder="Search..." value={globalSearchTerm} onChange={(e) => setGlobalSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-1.5 text-sm bg-gray-100 border-transparent rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent"/>
+                    </div></div>
+                    <nav className="flex-1 px-2 py-2 space-y-1">
+                        {data.layout.map(section => (
+                             <div key={section.id} className="group flex items-center justify-between rounded-md">
+                                <a href="#" onClick={(e) => { e.preventDefault(); setActiveView(section.id); }} className={`flex items-center space-x-3 px-3 py-2 text-sm font-medium rounded-md transition-colors w-full ${activeView === section.id ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}>
+                                <span>{section.title}</span>
+                                </a>
+                                {!isLocked && (
+                                    <div className="flex items-center opacity-0 group-hover:opacity-100 pr-2">
+                                        <button onClick={() => setModal({ type: 'section', data: section })} className="p-1 hover:bg-gray-200 rounded-md"><EditIcon/></button>
+                                        <button onClick={() => setModal({ type: 'delete_section', data: section })} className="p-1 hover:bg-gray-200 rounded-md"><TrashIcon/></button>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </nav>
+                     {!isLocked && (
+                        <div className="p-2">
+                            <button onClick={() => setModal({ type: 'section' })} className="w-full text-center py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-50 rounded-lg border-2 border-dashed border-indigo-200 hover:border-indigo-400 transition-colors flex items-center justify-center space-x-2">
+                                <PlusIcon/> <span>Add Section</span>
+                            </button>
+                        </div>
+                    )}
+                    <Reminders reminders={data.reminders || []} onAdd={handleReminderAdd} onUpdate={handleReminderUpdate} onDelete={handleReminderDelete} isLocked={isLocked} />
+                </aside>
+            )
+            
+            const renderActiveView = () => {
+                const section = data.layout.find(s => s.id === activeView);
+                if (!section) return <div className="p-4 text-gray-500">Please select a section from the sidebar.</div>;
+                
+                const projectsForSection = (filteredData.projects || []).filter(p => p.category === section.category);
+                const sitesForSection = (filteredData.sites || {})[section.dataKey] || [];
+                const accountsForSection = (filteredData.accounts || {})[section.dataKey] || [];
+                
+                let actions = null;
+                 switch(section.type) {
+                    case 'projectTable':
+                        actions = <div className="flex items-center space-x-2">
+                                <button onClick={() => resetProgress(section.category)} className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white rounded-md border border-gray-300 hover:bg-gray-100">Reset Progress</button>
+                                <button onClick={() => setModal({ type: 'project', data: { category: section.category } })} disabled={isLocked} className="px-3 py-1.5 text-xs font-medium text-white rounded-md bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">Add Project</button>
+                            </div>
+                        break;
+                    case 'sites':
+                        actions = <button onClick={() => setModal({ type: 'site', data: { dataKey: section.dataKey } })} disabled={isLocked} className="px-3 py-1.5 text-xs font-medium text-white rounded-md bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">Add Site</button>
+                        break;
+                    case 'accounts':
+                         actions = <div className="flex items-center space-x-2">
+                             <button onClick={() => setModal({ type: 'customize_columns' })} disabled={isLocked} className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white rounded-md border border-gray-300 hover:bg-gray-100 disabled:opacity-50">Customize</button>
+                             <button onClick={() => setModal({ type: 'account', data: { dataKey: section.dataKey } })} disabled={isLocked} className="px-3 py-1.5 text-xs font-medium text-white rounded-md bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">Add Account</button>
+                         </div>
+                        break;
+                 }
+
+
+                return (
+                    <div className="bg-[var(--main-bg)] rounded-lg border border-[var(--border-color)]">
+                        <div className="flex justify-between items-center p-4">
+                            <h2 className="text-lg font-bold text-[var(--text-color)]">{section.title}</h2>
+                            {actions}
+                        </div>
+                        <div className="border-t border-[var(--border-color)]">
+                        {
+                            section.type === 'projectTable' ? 
+                            <ProjectTable projects={projectsForSection} isLoading={isLoading} onToggle={handleToggle} onToggleArchive={handleToggleArchive} onEdit={(p) => setModal({ type: 'project', data: { project: p, category: section.category } })} onDelete={(p) => setModal({ type: 'delete_project', data: p })} tagColors={data.tagColors} onOpenNotes={(p) => setModal({ type: 'notes', data: p })} showArchived={showArchived[section.id]} setShowArchived={(val) => setShowArchived(p => ({...p, [section.id]: val}))} onReorder={handleReorderProject} isLocked={isLocked}/>
+                            : section.type === 'sites' ?
+                            <div className="p-4"><SitesSection sites={sitesForSection} onEditSite={(s) => setModal({ type: 'site', data: { site: s, dataKey: section.dataKey } })} onDeleteSite={(s) => setModal({ type: 'delete_site', data: {...s, dataKey: section.dataKey } })} isLocked={isLocked}/></div>
+                            : section.type === 'accounts' ?
+                            <AccountsTable accounts={accountsForSection} columns={data.accountColumns} onEditAccount={(acc) => setModal({ type: 'account', data: { account: acc, dataKey: section.dataKey } })} onDeleteAccount={(acc) => setModal({ type: 'delete_account', data: {...acc, dataKey: section.dataKey } })} showNotification={showNotification} isLocked={isLocked}/>
+                            : null
+                        }
+                        </div>
+                    </div>
+                )
+            };
+
+            if (isLoading || !data) {
+                return <div className="h-screen flex items-center justify-center text-gray-500">Loading Workspace...</div>;
+            }
+            
+            return (
+                <div className="flex h-screen bg-[var(--bg-color)]">
+                    <Sidebar />
+                    <main className="flex-1 overflow-y-auto">
+                         <header className="sticky top-0 bg-white/80 backdrop-blur-sm z-10 h-14 flex items-center justify-end px-4 border-b border-gray-200">
+                            <div className="flex items-center space-x-2">
+                                <input type="file" ref={fileInputRef} onChange={handleImportData} className="hidden" accept=".json"/>
+                                <button onClick={() => setModal({type: 'theme'})} className="p-2 rounded-md hover:bg-gray-100"><PaletteIcon /></button>
+                                <button onClick={() => setIsLocked(!isLocked)} className={`p-2 rounded-md hover:bg-gray-100 ${isLocked ? 'bg-red-100 text-red-700' : 'text-gray-700'}`}>{isLocked ? <UnlockIcon/> : <LockIcon/>}</button>
+                                <button onClick={handleImportClick} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white rounded-md border border-gray-300 hover:bg-gray-100 flex items-center space-x-2"><ImportIcon/><span>Import</span></button>
+                                <button onClick={handleExportData} className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white rounded-md border border-gray-300 hover:bg-gray-100 flex items-center space-x-2"><ExportIcon/><span>Export</span></button>
+                            </div>
+                        </header>
+                        <div className="p-4">{renderActiveView()}</div>
+                    </main>
+                    
+                    {notification && <div className="fixed bottom-4 right-4 text-sm font-medium py-2 px-4 rounded-lg bg-white shadow-lg border border-gray-200">{notification}</div>}
+                    {modal.type === 'project' && <ProjectModal project={modal.data?.project} onSubmit={handleProjectSubmit} onClose={() => setModal({ type: null, data: null })} tagColors={data.tagColors} />}
+                    {modal.type === 'notes' && <NotesModal project={modal.data} onSave={handleUpdateProject} onClose={() => setModal({ type: null, data: null })} />}
+                    {modal.type === 'site' && <SiteModal site={modal.data?.site} onSubmit={handleSiteSubmit} onClose={() => setModal({ type: null, data: null })} />}
+                    {modal.type === 'account' && <AccountModal account={modal.data?.account} columns={data.accountColumns} onSubmit={handleAccountSubmit} onClose={() => setModal({ type: null, data: null })} />}
+                    {modal.type === 'customize_columns' && <CustomizeColumnsModal columns={data.accountColumns} onSave={handleSaveColumns} onClose={() => setModal({ type: null, data: null })} />}
+                    {modal.type === 'section' && <SectionModal section={modal.data} onSave={handleSectionSubmit} onClose={() => setModal({ type: null, data: null })} />}
+                    {modal.type === 'theme' && <ThemeModal setTheme={setTheme} onClose={() => setModal({ type: null, data: null })}/>}
+                    {modal.type === 'delete_project' && <DeleteConfirmationModal name={modal.data.name} onConfirm={handleDeleteProject} onCancel={() => setModal({ type: null, data: null })} />}
+                    {modal.type === 'delete_site' && <DeleteConfirmationModal name={modal.data.name} onConfirm={handleDeleteSite} onCancel={() => setModal({ type: null, data: null })} />}
+                    {modal.type === 'delete_account' && <DeleteConfirmationModal name={modal.data.data.nickname} onConfirm={handleDeleteAccount} onCancel={() => setModal({ type: null, data: null })} />}
+                     {modal.type === 'delete_section' && <DeleteConfirmationModal name={modal.data.title} onConfirm={handleDeleteSection} onCancel={() => setModal({ type: null, data: null })} />}
+                </div>
+            );
+        }
+        
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
+
